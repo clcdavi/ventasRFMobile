@@ -12,19 +12,28 @@ import {
   RefreshCw,
   CheckCircle,
   ChevronRight,
-  LogOut
+  LogOut,
+  Check
 } from 'lucide-react-native';
 import { api } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../stores/auth';
 
 export default function DashboardScreen() {
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const isCustomer = user?.rol === 'customer' || user?.rol === 'user';
   const [selectedDate, setSelectedDate] = useState<string>('2026-05-25'); // Preselección 25 de Mayo
 
   const { data: stats, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['stats', selectedDate],
     queryFn: () => api.getStats(selectedDate === 'all' ? undefined : selectedDate),
+    enabled: !isCustomer,
+  });
+
+  const { data: misPedidos, isLoading: isLoadingPedidos, refetch: refetchPedidos, isRefetching: isRefetchingPedidos } = useQuery({
+    queryKey: ['mis-pedidos'],
+    queryFn: () => api.getMisPedidos(),
+    enabled: isCustomer,
   });
 
   const formatCurrency = (value: number) => {
@@ -43,6 +52,163 @@ export default function DashboardScreen() {
     if (unidades === 0) return `${docenas} doc.`;
     return `${docenas} doc. y ${unidades} un.`;
   };
+
+  if (isCustomer) {
+    const activePedido = misPedidos?.find(p => p.estado !== 'Entregado');
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Encabezado */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerSubtitle}>¡HOLA, {user?.nombre?.toUpperCase()}!</Text>
+            <Text style={styles.headerTitle}>Ventas RF</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <Pressable 
+              onPress={() => refetchPedidos()} 
+              style={({ pressed }) => [
+                styles.refreshButton,
+                pressed && styles.buttonPressed
+              ]}
+            >
+              <RefreshCw size={18} color="#4A5568" />
+            </Pressable>
+            <Pressable 
+              onPress={() => signOut()} 
+              style={({ pressed }) => [
+                styles.refreshButton,
+                pressed && styles.buttonPressed
+              ]}
+            >
+              <LogOut size={18} color="#EF4444" />
+            </Pressable>
+          </View>
+        </View>
+
+        <ScrollView
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={isRefetchingPedidos} onRefresh={refetchPedidos} tintColor="#4F46E5" />
+          }
+        >
+          {/* Card: Realizar Pedido */}
+          <View style={[styles.doubleBezelOuter, { marginTop: 20 }]}>
+            <View style={styles.doubleBezelInner}>
+              <Text style={styles.customerWelcomeTitle}>¿Qué vas a pedir hoy?</Text>
+              <Text style={styles.customerWelcomeDesc}>
+                Disfruta del mejor locro y los pastelitos más ricos en este evento. ¡Realiza tu pedido y síguelo en tiempo real!
+              </Text>
+              
+              <Pressable 
+                onPress={() => router.push('/pedidos/nuevo')}
+                style={({ pressed }) => [
+                  styles.customerActionButton, 
+                  pressed && styles.buttonPressed
+                ]}
+              >
+                <Plus size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.customerActionButtonText}>Realizar Nuevo Pedido</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {isLoadingPedidos ? (
+            <View style={{ marginTop: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#4F46E5" />
+              <Text style={{ marginTop: 10, color: '#64748B', fontSize: 13, fontWeight: '600' }}>Cargando tus pedidos...</Text>
+            </View>
+          ) : activePedido ? (
+            <View style={{ marginTop: 24 }}>
+              <Text style={styles.sectionTitle}>Seguimiento de tu Pedido Activo</Text>
+              <View style={styles.activeOrderCard}>
+                <View style={styles.activeOrderHeader}>
+                  <Text style={styles.activeOrderId}>Pedido #{activePedido.id}</Text>
+                  <Text style={styles.activeOrderDate}>Fecha: {activePedido.fecha_pedido}</Text>
+                </View>
+
+                {/* Progress bar */}
+                <View style={styles.progressTracker}>
+                  {['Pendiente', 'En preparación', 'En reparto', 'Entregado'].map((stage, idx) => {
+                    const dbStageName = stage === 'En reparto' ? 'En envío' : stage;
+                    const stagesList = ['Pendiente', 'En preparación', 'En envío', 'Entregado'];
+                    const activeIndex = stagesList.indexOf(activePedido.estado);
+                    const isCompleted = idx <= activeIndex;
+                    const isCurrent = idx === activeIndex;
+
+                    return (
+                      <View key={stage} style={styles.progressStep}>
+                        <View style={styles.stepCircleWrapper}>
+                          {idx > 0 && (
+                            <View style={[styles.stepLine, idx <= activeIndex && styles.stepLineCompleted]} />
+                          )}
+                          <View style={[
+                            styles.stepCircle, 
+                            isCompleted && styles.stepCircleCompleted,
+                            isCurrent && styles.stepCircleCurrent
+                          ]}>
+                            {isCompleted && <Check size={10} color="#FFFFFF" strokeWidth={3} />}
+                          </View>
+                        </View>
+                        <Text style={[
+                          styles.stepLabel, 
+                          isCompleted && styles.stepLabelCompleted,
+                          isCurrent && styles.stepLabelCurrent
+                        ]}>
+                          {stage}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.activeOrderFooter}>
+                  <Text style={styles.activeOrderTotalLabel}>Total a pagar</Text>
+                  <Text style={styles.activeOrderTotalValue}>
+                    {formatCurrency(activePedido.monto_total)} ({activePedido.pagado ? 'Cobrado' : 'A cobrar'})
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.noActiveOrderContainer}>
+              <Info size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+              <Text style={styles.noActiveOrderText}>No tienes pedidos activos en este momento.</Text>
+            </View>
+          )}
+
+          {/* Listado de pedidos anteriores */}
+          {misPedidos && misPedidos.length > (activePedido ? 1 : 0) && (
+            <View style={{ marginTop: 24 }}>
+              <Text style={styles.sectionTitle}>Historial de Pedidos</Text>
+              {misPedidos
+                .filter(p => p.id !== activePedido?.id)
+                .slice(0, 5)
+                .map((p) => (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => router.push(`/pedidos/${p.id}`)}
+                    style={styles.historyCard}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.historyId}>Pedido #{p.id}</Text>
+                      <Text style={styles.historyDate}>{p.fecha_pedido}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.historyValue}>{formatCurrency(p.monto_total)}</Text>
+                      <Text style={[styles.historyStatus, { color: p.estado === 'Entregado' ? '#10B981' : '#EF4444' }]}>
+                        {p.estado}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   const datesList = [
     { label: '25 de Mayo', value: '2026-05-25' },
@@ -685,5 +851,210 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
+  },
+  customerWelcomeTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1E293B',
+    textAlign: 'center',
+    fontFamily: 'SF Pro Display',
+  },
+  customerWelcomeDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 18,
+    fontFamily: 'SF Pro Display',
+  },
+  customerActionButton: {
+    backgroundColor: '#4F46E5',
+    borderRadius: 12,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginTop: 16,
+    width: '100%',
+  },
+  customerActionButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: 'SF Pro Display',
+  },
+  activeOrderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  activeOrderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  activeOrderId: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  activeOrderDate: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  progressTracker: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginVertical: 12,
+  },
+  progressStep: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  stepCircleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  stepLine: {
+    position: 'absolute',
+    height: 3,
+    backgroundColor: '#E2E8F0',
+    left: '-50%',
+    right: '50%',
+    top: 8,
+    zIndex: -1,
+  },
+  stepLineCompleted: {
+    backgroundColor: '#4F46E5',
+  },
+  stepCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  stepCircleCompleted: {
+    backgroundColor: '#4F46E5',
+  },
+  stepCircleCurrent: {
+    backgroundColor: '#4F46E5',
+    borderWidth: 3,
+    borderColor: '#C7D2FE',
+  },
+  stepLabel: {
+    fontSize: 8,
+    fontWeight: '600',
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 6,
+    textTransform: 'uppercase',
+  },
+  stepLabelCompleted: {
+    color: '#4F46E5',
+    fontWeight: '700',
+  },
+  stepLabelCurrent: {
+    color: '#4F46E5',
+    fontWeight: '800',
+  },
+  activeOrderFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 12,
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  activeOrderTotalLabel: {
+    fontSize: 9,
+    color: '#94A3B8',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  activeOrderTotalValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  noActiveOrderContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noActiveOrderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  historyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 4,
+      },
+    }),
+  },
+  historyId: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  historyDate: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  historyValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  historyStatus: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+    textTransform: 'uppercase',
   }
 });

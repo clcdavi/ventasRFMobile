@@ -57,6 +57,11 @@ export const api = {
     return fetchJson<Pedido[]>(`/api/pedidos${query ? `?${query}` : ''}`);
   },
 
+  // Obtener pedidos del usuario logueado (clientes)
+  getMisPedidos: () => {
+    return fetchJson<Pedido[]>('/api/pedidos/mis-pedidos');
+  },
+
   // Obtener detalle de un pedido
   getPedidoDetail: (id: number) => {
     return fetchJson<Pedido>(`/api/pedidos/${id}`);
@@ -143,7 +148,7 @@ export const api = {
   },
 
   // Autenticación: Registrarse
-  register: (fields: { nombre: string; email: string; contrasenia: string }) => {
+  register: (fields: { nombre: string; email: string; contrasenia: string; codigoStaff?: string }) => {
     return fetchJson<{ token: string; user: User }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -152,6 +157,7 @@ export const api = {
         email: fields.email,
         contrasenia: fields.contrasenia,
         password: fields.contrasenia,
+        codigo_staff: fields.codigoStaff,
       }),
     });
   },

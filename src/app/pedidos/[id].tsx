@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../stores/auth';
 import { 
   Phone, 
   MessageCircle, 
@@ -34,6 +35,9 @@ export default function PedidoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const pedidoId = parseInt(id || '0', 10);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isCustomer = user?.rol === 'customer' || user?.rol === 'user';
+  const isRepartidor = user?.rol === 'repartidor';
 
   // Fetch detalle del pedido
   const { data: pedido, isLoading, isError } = useQuery({
@@ -297,68 +301,74 @@ export default function PedidoDetailScreen() {
         </View>
 
         {/* Acciones del Pedido */}
-        <Text style={styles.sectionHeader}>Gestionar Pedido</Text>
-        
-        {/* Cambiar Estado del Pedido */}
-        <View style={styles.actionsCard}>
-          <Text style={styles.actionCardTitle}>Actualizar Estado de Preparación</Text>
-          <View style={styles.statusButtonsGrid}>
-            {['Pendiente', 'En preparación', 'En envío', 'Entregado'].map((st) => (
+        {!isCustomer && (
+          <>
+            <Text style={styles.sectionHeader}>Gestionar Pedido</Text>
+            
+            {/* Cambiar Estado del Pedido */}
+            <View style={styles.actionsCard}>
+              <Text style={styles.actionCardTitle}>Actualizar Estado de Preparación</Text>
+              <View style={styles.statusButtonsGrid}>
+                {['Pendiente', 'En preparación', 'En envío', 'Entregado'].map((st) => (
+                  <Pressable
+                    key={st}
+                    disabled={changeStatusMutation.isPending}
+                    onPress={() => changeStatusMutation.mutate(st)}
+                    style={[
+                      styles.statusSelectButton,
+                      pedido.estado === st && styles.statusSelectButtonActive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.statusSelectButtonText,
+                      pedido.estado === st && styles.statusSelectButtonTextActive
+                    ]}>
+                      {st}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.divider} />
+
+              {/* Botones de Cobro rápido */}
               <Pressable
-                key={st}
-                disabled={changeStatusMutation.isPending}
-                onPress={() => changeStatusMutation.mutate(st)}
-                style={[
-                  styles.statusSelectButton,
-                  pedido.estado === st && styles.statusSelectButtonActive
-                ]}
+                disabled={togglePaidMutation.isPending}
+                onPress={() => togglePaidMutation.mutate(!pedido.pagado)}
+                style={[styles.bigActionButton, pedido.pagado ? styles.btnUndoPayment : styles.btnConfirmPayment]}
               >
-                <Text style={[
-                  styles.statusSelectButtonText,
-                  pedido.estado === st && styles.statusSelectButtonTextActive
-                ]}>
-                  {st}
+                <CheckCircle size={16} color={pedido.pagado ? '#9f2f2d' : '#ffffff'} style={{ marginRight: 8 }} strokeWidth={2.5} />
+                <Text style={[styles.bigActionButtonText, pedido.pagado ? styles.btnUndoPaymentText : styles.btnConfirmPaymentText]}>
+                  {pedido.pagado ? 'Marcar como No Cobrado' : 'Marcar como Cobrado'}
                 </Text>
               </Pressable>
-            ))}
-          </View>
+            </View>
 
-          <View style={styles.divider} />
+            {/* Edición y Eliminación (Solo Admins, no Repartidores tampoco) */}
+            {!isRepartidor && (
+              <View style={styles.dangerZoneRow}>
+                <Pressable
+                  onPress={() => router.push({
+                    pathname: '/pedidos/editar',
+                    params: { id: pedido.id }
+                  })}
+                  style={styles.editButton}
+                >
+                  <Edit size={14} color="#111111" style={{ marginRight: 6 }} />
+                  <Text style={styles.editButtonText}>Editar Pedido</Text>
+                </Pressable>
 
-          {/* Botones de Cobro rápido */}
-          <Pressable
-            disabled={togglePaidMutation.isPending}
-            onPress={() => togglePaidMutation.mutate(!pedido.pagado)}
-            style={[styles.bigActionButton, pedido.pagado ? styles.btnUndoPayment : styles.btnConfirmPayment]}
-          >
-            <CheckCircle size={16} color={pedido.pagado ? '#9f2f2d' : '#ffffff'} style={{ marginRight: 8 }} strokeWidth={2.5} />
-            <Text style={[styles.bigActionButtonText, pedido.pagado ? styles.btnUndoPaymentText : styles.btnConfirmPaymentText]}>
-              {pedido.pagado ? 'Marcar como No Cobrado' : 'Marcar como Cobrado'}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Edición y Eliminación */}
-        <View style={styles.dangerZoneRow}>
-          <Pressable
-            onPress={() => router.push({
-              pathname: '/pedidos/editar',
-              params: { id: pedido.id }
-            })}
-            style={styles.editButton}
-          >
-            <Edit size={14} color="#111111" style={{ marginRight: 6 }} />
-            <Text style={styles.editButtonText}>Editar Pedido</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={handleDelete}
-            style={styles.deleteButton}
-          >
-            <Trash2 size={14} color="#9f2f2d" style={{ marginRight: 6 }} />
-            <Text style={styles.deleteButtonText}>Eliminar Pedido</Text>
-          </Pressable>
-        </View>
+                <Pressable
+                  onPress={handleDelete}
+                  style={styles.deleteButton}
+                >
+                  <Trash2 size={14} color="#9f2f2d" style={{ marginRight: 6 }} />
+                  <Text style={styles.deleteButtonText}>Eliminar Pedido</Text>
+                </Pressable>
+              </View>
+            )}
+          </>
+        )}
 
       </ScrollView>
     </SafeAreaView>

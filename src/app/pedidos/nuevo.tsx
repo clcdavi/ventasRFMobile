@@ -15,10 +15,13 @@ import { api } from '../../services/api';
 import { calcularTotal, DEFAULT_PRICES } from '../../utils/pricing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Minus, Plus, Save } from 'lucide-react-native';
+import { useAuth } from '../../stores/auth';
 
 export default function NuevoPedidoScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isCustomer = user?.rol === 'customer' || user?.rol === 'user';
 
   // Cargar precios de la API para asegurar consistencia
   const { data: serverPrices } = useQuery({
@@ -29,9 +32,9 @@ export default function NuevoPedidoScreen() {
   const precios = serverPrices || DEFAULT_PRICES;
 
   // Estados del Formulario
-  const [nombre, setNombre] = useState('');
+  const [nombre, setNombre] = useState(isCustomer ? user?.nombre || '' : '');
   const [telefono, setTelefono] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(isCustomer ? user?.email || '' : '');
   const [direccion, setDireccion] = useState('');
   const [tipoEntrega, setTipoEntrega] = useState<'envio' | 'retiro'>('envio');
   const [horario, setHorario] = useState('');
@@ -65,6 +68,7 @@ export default function NuevoPedidoScreen() {
       queryClient.invalidateQueries({ queryKey: ['pedidos'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['envios'] });
+      queryClient.invalidateQueries({ queryKey: ['mis-pedidos'] });
       Alert.alert('Éxito', 'Pedido registrado correctamente.');
       router.back();
     },
@@ -100,7 +104,7 @@ export default function NuevoPedidoScreen() {
       horario_entrega: horario.trim() || undefined,
       fecha_pedido: fecha,
       notas: notas.trim() || undefined,
-      pagado,
+      pagado: isCustomer ? false : pagado,
       estado: 'Pendiente'
     };
 
@@ -297,18 +301,20 @@ export default function NuevoPedidoScreen() {
             ))}
           </View>
 
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleLabel}>¿Está cobrado?</Text>
-              <Text style={styles.toggleSublabel}>Marca si el cliente ya abonó el pedido</Text>
+          {!isCustomer && (
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleLabel}>¿Está cobrado?</Text>
+                <Text style={styles.toggleSublabel}>Marca si el cliente ya abonó el pedido</Text>
+              </View>
+              <Pressable 
+                onPress={() => setPagado(prev => !prev)}
+                style={[styles.switch, pagado && styles.switchActive]}
+              >
+                <View style={[styles.switchKnob, pagado && styles.switchKnobActive]} />
+              </Pressable>
             </View>
-            <Pressable 
-              onPress={() => setPagado(prev => !prev)}
-              style={[styles.switch, pagado && styles.switchActive]}
-            >
-              <View style={[styles.switchKnob, pagado && styles.switchKnobActive]} />
-            </Pressable>
-          </View>
+          )}
 
           <Text style={styles.label}>Notas adicionales</Text>
           <TextInput

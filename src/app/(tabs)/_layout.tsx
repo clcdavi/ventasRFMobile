@@ -1,8 +1,25 @@
+import React from 'react';
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, ClipboardList, PieChart, Truck } from 'lucide-react-native';
-import { StyleSheet, Platform, View } from 'react-native';
+import { Platform, View } from 'react-native';
+import { useAuth } from '../../stores/auth';
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const role = user?.rol || 'customer';
+
+  // Ocultar/mostrar pestañas dinámicamente según el rol
+  const showTab = (tabName: 'index' | 'pedidos' | 'stats' | 'envios') => {
+    if (role === 'admin') {
+      return true;
+    }
+    if (role === 'repartidor') {
+      return tabName === 'envios';
+    }
+    // customer / cliente
+    return tabName === 'index' || tabName === 'pedidos';
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
       <Tabs
@@ -43,15 +60,17 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Resumen',
+            title: role === 'customer' ? 'Inicio' : 'Resumen',
             tabBarIcon: ({ color }) => <LayoutDashboard size={20} color={color} strokeWidth={2.5} />,
+            href: showTab('index') ? undefined : null,
           }}
         />
         <Tabs.Screen
           name="pedidos"
           options={{
-            title: 'Pedidos',
+            title: role === 'customer' ? 'Mis Pedidos' : 'Pedidos',
             tabBarIcon: ({ color }) => <ClipboardList size={20} color={color} strokeWidth={2.5} />,
+            href: showTab('pedidos') ? undefined : null,
           }}
         />
         <Tabs.Screen
@@ -59,6 +78,7 @@ export default function TabLayout() {
           options={{
             title: 'Estadísticas',
             tabBarIcon: ({ color }) => <PieChart size={20} color={color} strokeWidth={2.5} />,
+            href: showTab('stats') ? undefined : null,
           }}
         />
         <Tabs.Screen
@@ -66,6 +86,7 @@ export default function TabLayout() {
           options={{
             title: 'Reparto',
             tabBarIcon: ({ color }) => <Truck size={20} color={color} strokeWidth={2.5} />,
+            href: showTab('envios') ? undefined : null,
           }}
         />
       </Tabs>

@@ -25,21 +25,27 @@ import {
 import { api } from '../../services/api';
 import { Pedido } from '../../types';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../stores/auth';
 
 export default function PedidosScreen() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isCustomer = user?.rol === 'customer' || user?.rol === 'user';
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEstado, setSelectedEstado] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('2026-05-25'); // Default 25 de Mayo
 
-  // Fetch pedidos con filtros
+  // Fetch pedidos con filtros o mis pedidos
   const { data: pedidos, isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['pedidos', selectedEstado, selectedDate, searchQuery],
-    queryFn: () => api.getPedidos({
-      estado: selectedEstado || undefined,
-      fecha: selectedDate === 'all' ? undefined : selectedDate,
-      q: searchQuery || undefined,
-    }),
+    queryKey: ['pedidos', selectedEstado, selectedDate, searchQuery, isCustomer],
+    queryFn: () => isCustomer 
+      ? api.getMisPedidos()
+      : api.getPedidos({
+          estado: selectedEstado || undefined,
+          fecha: selectedDate === 'all' ? undefined : selectedDate,
+          q: searchQuery || undefined,
+        }),
   });
 
   // Mutación para cambiar el estado de pago
@@ -129,9 +135,10 @@ export default function PedidosScreen() {
             
             {/* Checkbox para Pago rápido */}
             <Pressable
+              disabled={isCustomer}
               style={({ pressed }) => [
                 styles.paidCheckboxContainer,
-                pressed && styles.checkboxPressed
+                !isCustomer && pressed && styles.checkboxPressed
               ]}
               onPress={() => togglePaidMutation.mutate({ id: item.id, pagado: !item.pagado })}
             >
@@ -162,69 +169,75 @@ export default function PedidosScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Buscador de Alto Impacto Neumórfico (Inset look) */}
-      <View style={styles.searchOuter}>
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#94A3B8" style={styles.searchIcon} />
-          <TextInput
-            placeholder="Buscar cliente, dirección o teléfono..."
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#94A3B8"
-          />
+      {!isCustomer && (
+        <View style={styles.searchOuter}>
+          <View style={styles.searchContainer}>
+            <Search size={18} color="#94A3B8" style={styles.searchIcon} />
+            <TextInput
+              placeholder="Buscar cliente, dirección o teléfono..."
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#94A3B8"
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Selector de Evento */}
-      <View style={styles.filterDateRow}>
-        {datesList.map((d) => (
-          <Pressable
-            key={d.value}
-            onPress={() => setSelectedDate(d.value)}
-            style={({ pressed }) => [
-              styles.dateChip,
-              selectedDate === d.value && styles.dateChipActive,
-              pressed && styles.checkboxPressed
-            ]}
-          >
-            <Text style={[
-              styles.dateChipText,
-              selectedDate === d.value && styles.dateChipTextActive
-            ]}>
-              {d.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Filtros de Estado */}
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          <Pressable
-            onPress={() => setSelectedEstado('')}
-            style={({ pressed }) => [
-              styles.filterChip, 
-              selectedEstado === '' && styles.filterChipActive,
-              pressed && styles.checkboxPressed
-            ]}
-          >
-            <Text style={[styles.filterChipText, selectedEstado === '' && styles.filterChipTextActive]}>Todos los estados</Text>
-          </Pressable>
-          {estadosList.map((est) => (
+      {!isCustomer && (
+        <View style={styles.filterDateRow}>
+          {datesList.map((d) => (
             <Pressable
-              key={est}
-              onPress={() => setSelectedEstado(est)}
+              key={d.value}
+              onPress={() => setSelectedDate(d.value)}
               style={({ pressed }) => [
-                styles.filterChip, 
-                selectedEstado === est && styles.filterChipActive,
+                styles.dateChip,
+                selectedDate === d.value && styles.dateChipActive,
                 pressed && styles.checkboxPressed
               ]}
             >
-              <Text style={[styles.filterChipText, selectedEstado === est && styles.filterChipTextActive]}>{est}</Text>
+              <Text style={[
+                styles.dateChipText,
+                selectedDate === d.value && styles.dateChipTextActive
+              ]}>
+                {d.label}
+              </Text>
             </Pressable>
           ))}
-        </ScrollView>
-      </View>
+        </View>
+      )}
+
+      {/* Filtros de Estado */}
+      {!isCustomer && (
+        <View style={styles.filterContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            <Pressable
+              onPress={() => setSelectedEstado('')}
+              style={({ pressed }) => [
+                styles.filterChip, 
+                selectedEstado === '' && styles.filterChipActive,
+                pressed && styles.checkboxPressed
+              ]}
+            >
+              <Text style={[styles.filterChipText, selectedEstado === '' && styles.filterChipTextActive]}>Todos los estados</Text>
+            </Pressable>
+            {estadosList.map((est) => (
+              <Pressable
+                key={est}
+                onPress={() => setSelectedEstado(est)}
+                style={({ pressed }) => [
+                  styles.filterChip, 
+                  selectedEstado === est && styles.filterChipActive,
+                  pressed && styles.checkboxPressed
+                ]}
+              >
+                <Text style={[styles.filterChipText, selectedEstado === est && styles.filterChipTextActive]}>{est}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Listado */}
       {isLoading ? (

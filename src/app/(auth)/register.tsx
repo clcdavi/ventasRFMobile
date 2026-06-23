@@ -26,6 +26,8 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [esStaff, setEsStaff] = useState(false);
+  const [codigoStaff, setCodigoStaff] = useState('');
 
   const handleRegister = async () => {
     if (!nombre || !email || !password || !confirmPassword) {
@@ -46,7 +48,7 @@ export default function RegisterScreen() {
     setError(null);
     setIsLoading(true);
     try {
-      await signUp(nombre.trim(), email.trim().toLowerCase(), password);
+      await signUp(nombre.trim(), email.trim().toLowerCase(), password, esStaff ? codigoStaff : undefined);
     } catch (err: any) {
       setError(err?.message || 'Error de conexión. Intente nuevamente.');
     } finally {
@@ -172,6 +174,40 @@ export default function RegisterScreen() {
                   autoCapitalize="none"
                 />
               </View>
+
+              {/* Opción de Staff */}
+              <Pressable 
+                onPress={() => {
+                  setEsStaff(!esStaff);
+                  setCodigoStaff('');
+                  if (error) setError(null);
+                }}
+                style={styles.staffToggle}
+              >
+                <Text style={styles.staffToggleText}>
+                  {esStaff ? 'Registrarme como Cliente' : '¿Eres parte del Staff? Regístrate aquí'}
+                </Text>
+              </Pressable>
+
+              {esStaff && (
+                <>
+                  <Text style={styles.inputLabel}>Código Secreto de Staff</Text>
+                  <View style={styles.inputWrapper}>
+                    <Lock size={18} color="#94A3B8" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Introduce el código de Staff"
+                      placeholderTextColor="#94A3B8"
+                      value={codigoStaff}
+                      onChangeText={(text) => {
+                        setCodigoStaff(text);
+                        if (error) setError(null);
+                      }}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </>
+              )}
 
               {/* Botón de Submit */}
               <Pressable
@@ -371,5 +407,16 @@ const styles = StyleSheet.create({
   },
   linkPressed: {
     opacity: 0.7,
+  },
+  staffToggle: {
+    paddingVertical: 10,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  staffToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4F46E5',
+    textDecorationLine: 'underline',
   }
 });

@@ -18,7 +18,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   signIn: (email: string, contrasenia: string) => Promise<void>;
-  signUp: (nombre: string, email: string, contrasenia: string) => Promise<void>;
+  signUp: (nombre: string, email: string, contrasenia: string, codigoStaff?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -47,10 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Si no hay token y no está en el grupo de auth, redirigir a login
       router.replace('/(auth)/login');
     } else if (token && inAuthGroup) {
-      // Si hay token y está en login/register, redirigir al panel principal
-      router.replace('/(tabs)');
+      // Si hay token y está en login/register, redirigir al panel principal o repartidor
+      if (user?.rol === 'repartidor') {
+        router.replace('/(tabs)/envios');
+      } else {
+        router.replace('/(tabs)');
+      }
     }
-  }, [token, segments, isLoading]);
+  }, [token, segments, isLoading, user]);
 
   async function checkAuth() {
     try {
@@ -100,10 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function signUp(nombre: string, email: string, contrasenia: string) {
+  async function signUp(nombre: string, email: string, contrasenia: string, codigoStaff?: string) {
     setIsLoading(true);
     try {
-      const data = await api.register({ nombre, email, contrasenia });
+      const data = await api.register({ nombre, email, contrasenia, codigoStaff });
       setToken(data.token);
       setUser(data.user);
       
