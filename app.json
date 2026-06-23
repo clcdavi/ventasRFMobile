@@ -9,7 +9,13 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.clcdavi.pedidosrf"
+      "bundleIdentifier": "com.clcdavi.pedidosrf",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "package": "com.clcdavi.pedidosrf",
@@ -33,6 +39,13 @@
           "iosUrlScheme": "com.googleusercontent.apps.470092085691-3s97ong1eao7ja6ae329h99muj9hh8ca"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3ec50bd7-5531-4baf-b41e-eb920a304a47"
+      }
+    },
+    "owner": "davcorre"
   }
 }

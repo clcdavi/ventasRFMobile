@@ -1,17 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storage';
 import { User } from '../types';
 import { api } from '../services/api';
 import { View, ActivityIndicator, Platform } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // Configurar Google Sign-In con las credenciales creadas
-GoogleSignin.configure({
-  webClientId: '470092085691-g3qhlkdmgu2gkrj2qt6o428ja146e7t8.apps.googleusercontent.com',
-  iosClientId: '470092085691-3s97ong1eao7ja6ae329h99muj9hh8ca.apps.googleusercontent.com',
-  offlineAccess: false,
-});
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({
+    webClientId: '470092085691-g3qhlkdmgu2gkrj2qt6o428ja146e7t8.apps.googleusercontent.com',
+    iosClientId: '470092085691-3s97ong1eao7ja6ae329h99muj9hh8ca.apps.googleusercontent.com',
+    offlineAccess: false,
+  });
+}
 
 interface AuthContextType {
   user: User | null;
@@ -58,8 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function checkAuth() {
     try {
-      const storedToken = await SecureStore.getItemAsync('authToken');
-      const storedUser = await SecureStore.getItemAsync('authUser');
+      const storedToken = await storage.getItem('authToken');
+      const storedUser = await storage.getItem('authUser');
       
       if (storedToken && storedUser) {
         setToken(storedToken);
@@ -70,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Podemos llamar a un endpoint de verificar sesión en el api
           const freshUser = await api.getMe(storedToken);
           setUser(freshUser);
-          await SecureStore.setItemAsync('authUser', JSON.stringify(freshUser));
+          await storage.setItem('authUser', JSON.stringify(freshUser));
         } catch (e) {
           console.warn('[Auth] Error al refrescar datos de usuario desde el servidor:', e);
           // Si el servidor retorna explícitamente no autorizado (por ejemplo, token expirado), deslogueamos
@@ -94,8 +96,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(data.token);
       setUser(data.user);
       
-      await SecureStore.setItemAsync('authToken', data.token);
-      await SecureStore.setItemAsync('authUser', JSON.stringify(data.user));
+      await storage.setItem('authToken', data.token);
+      await storage.setItem('authUser', JSON.stringify(data.user));
     } catch (error) {
       console.error('[Auth] Error en signIn:', error);
       throw error;
@@ -111,8 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(data.token);
       setUser(data.user);
       
-      await SecureStore.setItemAsync('authToken', data.token);
-      await SecureStore.setItemAsync('authUser', JSON.stringify(data.user));
+      await storage.setItem('authToken', data.token);
+      await storage.setItem('authUser', JSON.stringify(data.user));
     } catch (error) {
       console.error('[Auth] Error en signUp:', error);
       throw error;
@@ -122,6 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signInWithGoogle() {
+    if (Platform.OS === 'web') {
+      throw new Error('El inicio de sesión con Google no está disponible en la versión web.');
+    }
     setIsLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
@@ -159,8 +164,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setToken(null);
       setUser(null);
-      await SecureStore.deleteItemAsync('authToken');
-      await SecureStore.deleteItemAsync('authUser');
+      await storage.deleteItem('authToken');
+      await storage.deleteItem('authUser');
       // Desloguearse también del SDK de Google si estaba logueado
       try {
         if (GoogleSignin.hasPreviousSignIn()) {

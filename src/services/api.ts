@@ -1,11 +1,11 @@
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storage';
 import { API_BASE_URL } from './config';
 import { Pedido, Stats, Contacto, Precios, User } from '../types';
 
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   try {
-    const token = await SecureStore.getItemAsync('authToken').catch(() => null);
+    const token = await storage.getItem('authToken');
     const authHeaders: Record<string, string> = {};
     if (token) {
       authHeaders['Authorization'] = `Bearer ${token}`;
