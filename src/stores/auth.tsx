@@ -142,8 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         throw { code: 'SIGN_IN_CANCELLED', message: 'Inicio de sesión cancelado por el usuario.' };
       }
-    } catch (error) {
-      console.error('[Auth] Error en signInWithGoogle:', error);
+    } catch (error: any) {
+      if (error?.code === 'SIGN_IN_CANCELLED' || error?.code === '12501') {
+        console.log('[Auth] Google Sign-in cancelled by user');
+      } else {
+        console.error('[Auth] Error en signInWithGoogle:', error);
+      }
       throw error;
     } finally {
       setIsLoading(false);
