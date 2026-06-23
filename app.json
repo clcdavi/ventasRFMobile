@@ -1,15 +1,18 @@
 {
   "expo": {
-    "name": "ventasRF-mobile",
-    "slug": "ventasRF-mobile",
+    "name": "PedidosRF",
+    "slug": "PedidosRF",
+    "scheme": "pedidosrf",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.clcdavi.pedidosrf"
     },
     "android": {
+      "package": "com.clcdavi.pedidosrf",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +23,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.470092085691-3s97ong1eao7ja6ae329h99muj9hh8ca"
+        }
+      ]
+    ]
   }
 }
